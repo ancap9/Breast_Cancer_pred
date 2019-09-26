@@ -1,0 +1,91 @@
+---
+title: "Breast Cancer Prediction"
+author: "Antonio Caputo"
+date: "26/09/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, message=FALSE, warning=FALSE)
+```
+
+# Introduction
+
+This project is about one of the most important problem in today society: cancer disease prediction.
+With big data and Machine Learning growth in biomedical and healthcare communities, accurate analysis of medical data can predict early disease detection.
+Breast cancer is most common form of cancer in Women. It represents about 12% of all new cancer cases and 25% of all
+cancers in women.
+Here we build Machine Learning Models to predict the type of Breast Cancer (Malignant or Benign).
+
+In order to build our model we use a study from US state of Wisconsin the Breast Cancer Wisconsin (Diagnostic) DataSet (https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/breast-cancer-wisconsin.data).The data used for this project was collected in 1993 by the University of Wisconsin and it is composed by the biopsy result of 569 patients in Wisconsin Hospital.
+3-D digitized images of breast mass(lump) were used for extracting information.
+The dataset’s features describe characteristics of the cell nuclei on the image. The features information are
+specified below:
+
+- ID number
+- Diagnosis (M = malignant, B = benign)
+
+and then we have the 10 variables used for the prediction:
+
+1. radius: mean of distances from center to points on the perimeter
+2. texture: standard deviation of grey-scale values
+3. perimeter
+4. area: Number of pixels inside contour + ½ for pixels on perimeter
+5. smoothness: local variation in radius lengths
+6. compactness: perimeter^2 / area  
+7. concavity: severity of concave portions of the contour
+8. concave points: number of concave portions of the contour
+9. symmetry
+10. fractal dimension: “coastline approximation” 
+
+
+```{r}
+
+if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
+if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if(!require(corrplot)) install.packages("corrplot", repos = "http://cran.us.r-project.org")
+
+data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data")
+colnames(data)<- c("id","diagnosis","radius_mean","texture_mean","perimeter_mean","area_mean","smoothness_mean","compactness_mean","concavity_mean","concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst")
+
+```
+
+Then we have the mean, standard error and “worst” or largest (mean of the three largest values) of these features were
+computed for each image, resulting in 30 variables
+
+This project will make a performance comparison between different machine learning algorithms in order to
+to assess the correctness in classifying data with respect to efficiency and effectiveness of each algorithm in
+terms of accuracy, precision, sensitivity and specificity, in order to find the best diagnosis.
+
+
+
+# Method/Analysis
+
+Let's analize our data, dimension and type.
+
+```{r}
+
+class(data)
+dim(data)
+
+```
+So we have 568 observations, where ```r sum(data$diagnosis=="M")  ``` are malignant and ```r sum(data$diagnosis=="B")  ``` are benign. So the distrubution of the observations is not balanced.
+
+
+```{r}
+ggplot(data, aes(x=diagnosis))+geom_bar(fill="red",alpha=0.5)+labs(title="Distribution")
+```
+
+In our data set thera are 30 features, so we have to try to lighten it, in order to have a lighter model.
+What we can do is see if there are features with high correlation that give us just redundant information.
+
+
+# Result
+
+
+
+# Conclusion
