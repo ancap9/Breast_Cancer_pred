@@ -48,9 +48,14 @@ if(!require(randomForest)) install.packages("randomForest", repos = "http://cran
 if(!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
 if(!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
 if(!require(corrplot)) install.packages("corrplot", repos = "http://cran.us.r-project.org")
+if(!require(gam)) install.packages("gam", repos = "http://cran.us.r-project.org")
+
 
 data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data")
-colnames(data)<- c("id","diagnosis","radius_mean","texture_mean","perimeter_mean","area_mean","smoothness_mean","compactness_mean","concavity_mean","concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst")
+colnames(data)<- c("id","diagnosis","radius_mean","texture_mean","perimeter_mean","area_mean","smoothness_mean",
+                   "compactness_mean","concavity_mean","concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se",
+                   "smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst",
+                   "smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst")
 
 ```
 
@@ -81,11 +86,201 @@ ggplot(data, aes(x=diagnosis))+geom_bar(fill="red",alpha=0.5)+labs(title="Distri
 ```
 
 In our data set thera are 30 features, so we have to try to lighten it, in order to have a lighter model.
-What we can do is see if there are features with high correlation that give us just redundant information.
+What we can do is see if there are any features with high correlation that give us just redundant information.
+
+So we build the correlation Matrix and find the features with correletion more than 0.9 and than we remove them from our data set.
+
+We also can see a corrplot for better understand which column are more correlated:
+
+```{r}
+correlationMatrix <- cor(data[,3:ncol(data)])
+
+
+corrplot(correlationMatrix)
+# find features that are highly corrected (corr >0.90)
+high_correlation <- findCorrelation(correlationMatrix, cutoff=0.9)
+
+
+# print indexes of highly correlated attributes
+print(high_correlation)
+
+# Remove correlated variables
+
+data_no_cor <- data %>% select(-high_correlation)
+
+
+#final data set
+
+data <- cbind(diagnosis= data$diagnosis, data_no_cor)
+
+
+```
+In the end our attributes will be  `r ncol(data_no_cor) ` 
+
+
+Before we start our analysis, we have to do the last step, which consist of creatring the train and test set from our data.
+We split the dataset into Train (70%) and Test (30%)
+
+```{r}
+
+# split data in train and test set
+set.seed(1, sample.kind="Rounding")
+
+data_index <- createDataPartition(data$diagnosis, times=1, p=0.7, list = FALSE)
+train_set <- data[data_index, ]
+test_set <- data[-data_index, ]
+
+fitControl <- trainControl(method="cv", number = 15, 
+                           classProbs = TRUE,summaryFunction = twoClassSummary)
+
+```
+
+
 
 
 # Result
 
+In this project we will now train different model to predict if the observation is Malignant or Benign, and we will compare them using different coefficent like accuracy, sensitivity, specificity, F1 score.
+
+
+## Logistic Regression Model
+
+Logistic regression is a specific case of a set of generalized linear models.
+Below we can see the results of this model:
+
+```{r}
+logr_model<- train(diagnosis ~ . ,data= train_set, method= "glm",
+                   preProcess=c("scale", "center"),metric="ROC", trControl= fitControl)
+
+logr_pred<- predict(logr_model, test_set)
+
+logr_confmatrix<- confusionMatrix(logr_pred, test_set$diagnosis, positive = "M")
+
+logr_confmatrix
+
+
+```
+
+And a plot of the most important variable:
+
+```{r}
+
+plot(varImp(logr_model), top=10, main="Top variables - Log Regr")
+
+```
+
+
+
+## k-Nearest Neighbor
+
+With k-nearest neighbors (kNN) we estimate p(x1, x2) in a similar way to bin smoothing. However, as we will see, kNN is easier to adapt to multiple dimensions. First we define the distance between all observations based on the features. Then, for any point (x1, x2) for which we want an estimate of p(x1, x2), we look for the k nearest points to (x1, x2) and then take an average.
+
+```{r}
+
+#knn
+
+knn_model<- train(diagnosis ~ . ,data= train_set, method= "knn",
+                 preProcess=c("scale", "center"),metric="ROC", trControl= fitControl,
+                 tuneGrid = data.frame(k = seq(9, 71, 2)))
+
+knn_pred<- predict(knn_model, test_set)
+
+knn_confmatrix<- confusionMatrix(knn_pred, test_set$diagnosis, positive = "M")
+
+knn_confmatrix
+
+
+```
+
+
+
+## Random Forest Model
+
+Random forest is a method based on decision trees. It split data into sub-samples, trains decision tree classifiers on each sub-sample and averages prediction of each classifier.
+
+```{r}
+
+rf_model<- train(diagnosis ~ . ,data= train_set, method= "rf",
+                   preProcess=c("scale", "center"),metric="ROC", trControl= fitControl)
+
+rf_pred<- predict(rf_model, test_set)
+
+rf_confmatrix<- confusionMatrix(rf_pred, test_set$diagnosis, positive = "M")
+
+rf_confmatrix
+
+
+```
+
+And a plot of the most important variable:
+
+```{r}
+
+plot(varImp(rf_model), top=10, main="Top variables - Log Regr")
+
+```
+
+We can see the plot with the two most important predictor.
+
+```{r}
+data%>%ggplot(aes(perimeter_worst, area_worst, col=data$diagnosis))+ geom_point()
+```
+
+
+
+## Quadratic Discriminant Analysis QDA
+
+Quadratic Discriminant Analysis (QDA) is a version of Naive Bayes in which we assume that the distributions pX|Y =1(x) and pX|Y =0(x) are multivariate normal.
+
+```{r}
+
+#qda
+
+qda_model<- train(diagnosis ~ . ,data= train_set, method= "qda",
+                  preProcess=c("scale", "center"))
+
+qda_pred<- predict(qda_model, test_set)
+
+qda_confmatrix<- confusionMatrix(qda_pred, test_set$diagnosis, positive = "M")
+
+qda_confmatrix
+
+
+```
+
+
+
 
 
 # Conclusion
+
+
+We trained 4 model: logistic regression, Random Forest, k-Nearest Neighbor and Quadratic Discriminant Analysis.
+Let's see now our results and difference.
+Below we have summary table for every model:
+
+
+```{r}
+
+models<- list(Log_regr= logr_model, Random_Forest= rf_model, KNN= knn_model,QDA=qda_model)
+
+confusionmatrix<- list(Log_regr= logr_confmatrix, Random_Forest= rf_confmatrix,
+                       KNN= knn_confmatrix,QDA=qda_confmatrix)
+
+confusionmatrix_results <- sapply(confusionmatrix, function(x) x$byClass)
+confusionmatrix_results %>% knitr::kable()
+
+confusionmatrix_accuracy <- list(confusionmatrix$Log_regr$overall["Accuracy"],
+                                 confusionmatrix$Random_Forest$overall["Accuracy"],
+                                 confusionmatrix$KNN$overall["Accuracy"],
+                                 confusionmatrix$QDA$overall["Accuracy"])
+confusionmatrix_accuracy %>% knitr::kable()
+
+
+```
+
+We can see that random forest model perfom better, Although in term of accuracy there isn't a lot of difference we notice more difference in term of sensitivity. In this particular kind of problem we are more interested and worried in predicting True Positives and so less False Negative that have a bigger social cost.
+
+
+
+
